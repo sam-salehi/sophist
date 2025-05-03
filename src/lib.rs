@@ -59,7 +59,9 @@ pub mod embeddor {
     use core::panic;
     use std::process::Command;
 
-    const SUPPORTED_FILES: [&str; 6] = [
+    use rusqlite::types::Value;
+
+    const SUPPORTED_TEXT_FILES: [&str; 6] = [
         ".txt",
         ".pdf",
         ".csv",
@@ -67,6 +69,12 @@ pub mod embeddor {
         ".tsv",
         ".xml"
     ];
+    const SUPPORTED_IMAGE_TYPES: [&str; 4] = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".webp"
+];
 
 
     pub async fn get_embedding(abs_path: &str) -> Result<Option<Vec<f32>>, Box<dyn std::error::Error>> {
@@ -86,6 +94,7 @@ pub mod embeddor {
             ".tsv"=>get_general_embedding(abs_path).await,
             ".xml"=>get_general_embedding(abs_path).await,
             ".doc"=>get_doc_embedding(abs_path).await,
+            ".jpg"=>get_image_embedding(abs_path).await,
             _ => None
         };
         Ok(embedding)
@@ -133,7 +142,7 @@ pub mod embeddor {
 
     async fn generate_embedding(content: &str) -> Option<Vec<f32>> {
         let summary = generate_gemini_summary(content).await.ok()?;
-        generate_gemini_text_embedding(&summary).await
+        generate_jina_text_embedding(&summary).await
     }
 
 
@@ -210,6 +219,109 @@ pub mod embeddor {
 
 
         let embedding = response["embedding"]["values"]
+            .as_array()?
+            .iter()
+            .map(|v| v.as_f64().unwrap() as f32)
+            .collect::<Vec<f32>>();
+        Some(embedding)
+    }
+
+
+    async fn generate_jina_text_embedding(content: &str) -> Option<Vec<f32>> {
+        let api_key = std::env::var("JINA_API_KEY").expect("JINA_API_KEY");
+        let auth_header = format!("Bearer {}", api_key);
+
+        let client = reqwest::Client::new();
+        let response = client
+            .post("https://api.jina.ai/v1/embeddings")
+            .header("Content-Type", "application/json")
+            .header("Authorization", auth_header)
+            .json(&serde_json::json!({
+                "model": "jina-clip-v2",
+                "encoding_type": "float",
+                "input": content
+            }))
+            .send()
+            .await
+            .ok()?
+            .json::<serde_json::Value>()
+            .await
+            .ok()?;
+        
+
+        let embedding = response["data"][0]["embedding"]
+            .as_array()?
+            .iter()
+            .map(|v| v.as_f64().unwrap() as f32)
+            .collect::<Vec<f32>>();
+
+        Some(embedding)
+    }
+
+
+    async fn get_image_embedding(image_path: &str) -> Option<Vec<f32>> {
+        let image_url = upload_image(image_path).await;
+        println!("Uploade image to {}",image_url);
+        generate_jina_image_embedding(image_url).await
+
+    }
+
+    async fn upload_image(image_path: &str) -> &str {
+        // Read the image file into bytes
+        let image_data = std::fs::read(image_path).map_err(|e| {
+            println!("Failed to read image file: {}", e);
+            return None;
+        }).unwrap();
+        
+        let base64_image = STANDARD.encode(image_data);
+
+        // Make a request to upload the image
+        let client = reqwest::Client::new();
+        let response = client
+            .post("https://api.imgur.com/3/image")
+            .header("Authorization", format!("Client-ID {}", YOUR_IMGUR_CLIENT_ID))
+            .form(&[("image", base64_image)])
+            .send()
+            .await
+            .expect("Failed to upload image");
+
+        // Extract the URL from the response
+        let response_json: serde_json::Value = response.json().await.expect("Failed to parse response");
+        let image_url = response_json["data"]["link"].as_str().expect("Failed to get image URL");
+
+        image_url
+    }
+
+    async fn generate_jina_image_embedding(image_url: &str) -> Option<Vec<f32>> {
+
+        let api_key = std::env::var("JINA_API_KEY").expect("JINA_API_KEY");
+        let auth_header = format!("Bearer {}", api_key);
+
+        let client = reqwest::Client::new();
+        let response = client
+            .post("https://api.jina.ai/v1/embeddings")
+            .header("Content-Type", "application/json")
+            .header("Authorization", auth_header)
+            .json(&serde_json::json!({
+                "model": "jina-clip-v2",
+                "encoding_type": "float",
+                "input": [
+                    {"image": 
+                    "https://picsum.photos/200/300"
+            }
+                ]
+            }))
+            .send()
+            .await
+            .ok()?;
+
+        println!("Response status: {}", response.status());
+        
+        let response_json = response.json::<serde_json::Value>().await.ok()?;
+        println!("Response body: {:?}", response_json);
+
+        // Extract embedding if successful
+        let embedding = response_json["data"][0]["embedding"]
             .as_array()?
             .iter()
             .map(|v| v.as_f64().unwrap() as f32)
