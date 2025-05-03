@@ -13,6 +13,7 @@ async fn main() {
     match command.as_str() {
         "init" => setup::init(), 
         "watch" => stalker::begin_watch(second_arg.unwrap()).await,
+        "abandon" => stalker::abandon_watch(second_arg.unwrap()),
         "debug" => debugger::find_embedding(second_arg.unwrap()).await,
         _ => handle_invalid_command(command),
     }

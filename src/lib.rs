@@ -33,14 +33,10 @@ pub mod stalker {
         let abs_path_buf = Path::new(&file_path).canonicalize().unwrap();
         let abs_path = abs_path_buf.to_string_lossy().to_string();
 
-        // check if abs_path exists in database
-        
-        // if not exit
         if !sql_accessor::path_exists(&abs_path) {
             println!("Given path was not found in database: {}",abs_path);
             return;
         }
-        // else remove it.
         sql_accessor::remove_row(&abs_path);        
         // todo stop tracking file.
 
@@ -137,7 +133,7 @@ pub mod embeddor {
 
     async fn generate_embedding(content: &str) -> Option<Vec<f32>> {
         let summary = generate_gemini_summary(content).await.ok()?;
-        generate_gemini_embedding(&summary).await
+        generate_gemini_text_embedding(&summary).await
     }
 
 
@@ -190,7 +186,7 @@ pub mod embeddor {
     }
 
 
-    async fn generate_gemini_embedding(content: &str) -> Option<Vec<f32>> {
+    async fn generate_gemini_text_embedding(content: &str) -> Option<Vec<f32>> {
         let api_key = std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set."); 
 
         let client = reqwest::Client::new();
@@ -220,6 +216,9 @@ pub mod embeddor {
             .collect::<Vec<f32>>();
         Some(embedding)
     }
+
+
+
 
     // pub fn get_supported_files() -> [&'static str; 2] {
     //     // returns files which allow for an embeddor to be used
@@ -270,13 +269,13 @@ mod sql_accessor {
         values: Vec<f32>
     }
 
-    fn get_connection() -> Result<rusqlite::Connection,rusqlite::Error>{
-        let conn = rusqlite::Connection::open("vectors.db")?;
-        Ok(conn)
+    fn get_connection() -> rusqlite::Connection{
+        let conn = rusqlite::Connection::open("vectors.db").expect("Unable to get access to vectors.db");
+        conn
     }
 
     pub fn make_sql_table() -> Result<(),rusqlite::Error> {
-        let conn = get_connection()?;
+        let conn = get_connection();
         conn.execute_batch("
             BEGIN;
             CREATE TABLE IF NOT EXISTS FILES (
@@ -291,24 +290,36 @@ mod sql_accessor {
 
 
     pub fn insert_embedding(address: &str, embedding: Vec<f32>) -> Result<(), rusqlite::Error> {
-        let conn = get_connection()?;
-        let id = Uuid::new_v4().to_string();
-        let blob = serde_json::to_vec(&EmbeddingData { values: embedding }) // further error handling
+        let conn = get_connection();
+        let blob = serde_json::to_vec(&EmbeddingData { values: embedding }) 
             .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
                 0,
                 rusqlite::types::Type::Blob,
                 Box::new(e)
             ))?;
+
+        if path_exists(address) {
+            // Update existing row
+            conn.execute(
+                "UPDATE FILES SET emb = ?1 WHERE path = ?2",
+                (&blob, address)
+            )?;
+            println!("Updated embedding for {}", address);
+        } else {
+            // Insert new row
+            let id = Uuid::new_v4().to_string();
+            conn.execute(
+                "INSERT INTO FILES (id, emb, path) VALUES (?1, ?2, ?3)",
+                (&id, &blob, address)
+            )?;
+            println!("Inserted new embedding for {}", address);
+        }
         
-        conn.execute(
-            "INSERT INTO FILES (id, emb, path) VALUES (?1, ?2, ?3)",
-            (&id, &blob, address)
-        )?;
         Ok(())
     }
 
     pub fn get_embedding(address: &str) -> Result<Vec<f32>, rusqlite::Error> {
-        let conn = get_connection()?;
+        let conn = get_connection();
         let mut stmt = conn.prepare("SELECT emb FROM FILES WHERE path = ?1")?;
         let blob: Vec<u8> = stmt.query_row(&[address], |row| row.get(0))?;
         
@@ -322,29 +333,28 @@ mod sql_accessor {
         Ok(embedding_data.values)
     }
 
-    // ! test below.
-    pub fn path_exists(abs_path: &str) -> Result<bool,rusqlite::Error> {
-        let conn = get_connection()?;
+
+    pub fn path_exists(abs_path: &str) -> bool {
+        let conn = get_connection();
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM FILES WHERE path = ?1")
             .expect("Failed to prepare statement");
         
         let count: i32 = stmt.query_row(&[abs_path], |row| row.get(0))
             .unwrap_or(0);
             
-        Ok(count > 0)
+        count > 0
     }
 
-    pub fn remove_row(abs_path: &str) -> Result<(), rusqlite::Error> {
-        assert!(path_exists(abs_path).unwrap());
+    pub fn remove_row(abs_path: &str) {
+        assert!(path_exists(abs_path));
         
-        let conn = get_connection()?;
+        let conn = get_connection();
         conn.execute(
             "DELETE FROM FILES WHERE path = ?1",
             &[abs_path]
-        )?;
+        ).expect("Unable to execute SQL query.");
         
         println!("Successfully removed {} from database", abs_path);
-        Ok(())
     }
 
 }
