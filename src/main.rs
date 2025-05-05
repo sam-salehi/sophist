@@ -1,5 +1,5 @@
 use std::{env,process};
-use sophist::{debugger, setup, stalker};
+use sophist::{debugger, setup, stalker::{begin_watch,abandon_watch}};
 use dotenv::dotenv;
 
 #[tokio::main]
@@ -12,8 +12,8 @@ async fn main() {
 
     match command.as_str() {
         "init" => setup::init(), 
-        "watch" => stalker::begin_watch(second_arg.unwrap()).await,
-        "abandon" => stalker::abandon_watch(second_arg.unwrap()),
+        "watch" => begin_watch(second_arg.unwrap()).await,
+        "abandon" => abandon_watch(second_arg.unwrap()),
         "debug" => debugger::find_embedding(second_arg.unwrap()).await,
         _ => handle_invalid_command(command),
     }
