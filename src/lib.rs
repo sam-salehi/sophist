@@ -11,13 +11,12 @@ pub mod stalker {
         let embedding_res = get_embedding(&abs_path).await;
         
         let embedding = match embedding_res {
-            Ok(Some(emb)) => emb,
-            Ok(None) => {println!("unable to extract embeddings.");vec![]},
-            Err(e) => {
-                println!("Encountered error generating embeddings: {}",e);
+            Some(emb) => emb,
+            None => {
+                println!("Encountered error generating embeddings:");
                 println!("Terminating process");
                 std::process::exit(1)
-             }, 
+            }
         };
         let stat = insert_embedding(&abs_path, embedding);
 
@@ -43,7 +42,6 @@ pub mod stalker {
     }
 
     fn is_valid_file(file_path: &String) {
-
         if !Path::new(file_path).exists() {
             println!("Path to {file_path} not found");
             std::process::exit(1);
@@ -61,43 +59,50 @@ pub mod embeddor {
 
     use rusqlite::types::Value;
 
-    const SUPPORTED_TEXT_FILES: [&str; 6] = [
+
+
+
+    const GENERAL_TEXT_TYPES: [&str; 6] = [
         ".txt",
-        ".pdf",
+        ".md",
         ".csv",
         ".json",
         ".tsv",
         ".xml"
     ];
-    const SUPPORTED_IMAGE_TYPES: [&str; 4] = [
+    const UNIQUE_TEXT_TYPES: [&str; 2] = [
+        ".pdf",
+        ".doc"
+    ];
+
+
+    const GENERAL_IMAGE_TYPE: [&str; 3] = [
     ".jpg",
     ".jpeg",
     ".png",
-    ".webp"
 ];
 
+    // TODO work on return type
+    pub async fn get_embedding(abs_path: &str) -> Option<Vec<f32>> {
+        assert!(is_valid_file(abs_path));
 
-    pub async fn get_embedding(abs_path: &str) -> Result<Option<Vec<f32>>, Box<dyn std::error::Error>> {
+
         let file_type = if let Some(pos) = abs_path.find('.') {
             &abs_path[pos..]
         } else {
-            return Err("No file extension found".into());
+            ""
         };
-
 
         let embedding: Option<Vec<f32>> = match file_type {
-            ".txt" => get_general_embedding(abs_path).await,
+            ext if GENERAL_TEXT_TYPES.contains(&ext)=> get_general_text_embedding(abs_path).await,
             ".pdf" => get_pdf_embedding(abs_path).await,
-            ".md" => get_general_embedding(abs_path).await,
-            ".csv"=> get_general_embedding(abs_path).await,
-            ".json"=>get_general_embedding(abs_path).await,
-            ".tsv"=>get_general_embedding(abs_path).await,
-            ".xml"=>get_general_embedding(abs_path).await,
             ".doc"=>get_doc_embedding(abs_path).await,
-            ".jpg"=>get_image_embedding(abs_path).await,
+            ext if GENERAL_IMAGE_TYPE.contains(&ext) => get_general_image_embedding(abs_path).await,
             _ => None
         };
-        Ok(embedding)
+
+        println!("Recieved embedding: {:?}", embedding);
+        embedding
     }
 
 
@@ -116,20 +121,38 @@ pub mod embeddor {
             .status()
             .expect("Failed to convert PDF to txt using pdftotext");
     
-            get_general_embedding(&text_path).await
+            get_general_text_embedding(&text_path).await
     }
 
-    async fn get_general_embedding(abs_path: &str) ->  Option<Vec<f32>> {
-        assert!(valid_general_file(&abs_path), "not valid type for general text extraction at {}", abs_path);
+    async fn get_general_text_embedding(abs_path: &str) ->  Option<Vec<f32>> {
+        assert!(is_valid_file(&abs_path), "not valid type for general text extraction at {}", abs_path);
         let content = std::fs::read_to_string(abs_path).ok()?;
         generate_embedding(&content).await
     }
 
+    async fn get_general_image_embedding(abs_path: &str) -> Option<Vec<f32>> {
+        // handle errors here. Return Option
+        match generate_jina_image_embedding(abs_path).await {
+            Ok(emb) => Some(emb),
+            Err(e) => {
+                println!("Issue generating embeeding: \n {}",e);
+                None
+            }
+        }
 
-    fn valid_general_file(path: &str) -> bool{
-        // TODO
-        // Check file to see if its of valid format.
-        return true
+    }
+
+
+    fn is_valid_file(path: &str) -> bool {
+        let file_type = if let Some(pos) = path.find('.') {
+            &path[pos..]
+        } else {
+            return false
+        };
+
+        return GENERAL_IMAGE_TYPE.contains(&file_type) 
+            || GENERAL_TEXT_TYPES.contains(&file_type) 
+            || UNIQUE_TEXT_TYPES.contains(&file_type)
     }
 
 
@@ -161,9 +184,6 @@ pub mod embeddor {
         // fit result into embedding requirements.
         // * don't see reason to watch for token limits at this stage.
 
-
-
-
         let api_key = std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set.");
         
         let client = reqwest::Client::new();
@@ -193,39 +213,6 @@ pub mod embeddor {
             .to_string();
         Ok(summary)
     }
-
-
-    async fn generate_gemini_text_embedding(content: &str) -> Option<Vec<f32>> {
-        let api_key = std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY must be set."); 
-
-        let client = reqwest::Client::new();
-        let response = client
-            .post("https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-exp-03-07:embedContent")
-            .query(&[("key", api_key)])
-            .json(&serde_json::json!({
-                "model": "models/gemini-embedding-exp-03-07",
-                "content": {
-                    "parts": [{
-                        "text": content
-                    }]
-                }
-            }))
-            .send()
-            .await
-            .ok()?
-            .json::<serde_json::Value>()
-            .await
-            .ok()?;
-
-
-        let embedding = response["embedding"]["values"]
-            .as_array()?
-            .iter()
-            .map(|v| v.as_f64().unwrap() as f32)
-            .collect::<Vec<f32>>();
-        Some(embedding)
-    }
-
 
     async fn generate_jina_text_embedding(content: &str) -> Option<Vec<f32>> {
         let api_key = std::env::var("JINA_API_KEY").expect("JINA_API_KEY");
@@ -258,42 +245,20 @@ pub mod embeddor {
         Some(embedding)
     }
 
+    async fn generate_jina_image_embedding(abs_path: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        // Check if file exists and is a supported image type
 
-    async fn get_image_embedding(image_path: &str) -> Option<Vec<f32>> {
-        let image_url = upload_image(image_path).await;
-        println!("Uploade image to {}",image_url);
-        generate_jina_image_embedding(image_url).await
-
-    }
-
-    async fn upload_image(image_path: &str) -> &str {
-        // Read the image file into bytes
-        let image_data = std::fs::read(image_path).map_err(|e| {
-            println!("Failed to read image file: {}", e);
-            return None;
-        }).unwrap();
+        let path = std::path::Path::new(abs_path);
+        if !path.exists() {
+            return Err("Image file not found: {abs_path}".into())
+        }
         
-        let base64_image = STANDARD.encode(image_data);
-
-        // Make a request to upload the image
-        let client = reqwest::Client::new();
-        let response = client
-            .post("https://api.imgur.com/3/image")
-            .header("Authorization", format!("Client-ID {}", YOUR_IMGUR_CLIENT_ID))
-            .form(&[("image", base64_image)])
-            .send()
-            .await
-            .expect("Failed to upload image");
-
-        // Extract the URL from the response
-        let response_json: serde_json::Value = response.json().await.expect("Failed to parse response");
-        let image_url = response_json["data"]["link"].as_str().expect("Failed to get image URL");
-
-        image_url
-    }
-
-    async fn generate_jina_image_embedding(image_url: &str) -> Option<Vec<f32>> {
-
+        // Read the image file
+        let image_data = std::fs::read(abs_path)?;
+        
+        // Convert to base64
+        let base64_image = base64::encode(&image_data);
+        
         let api_key = std::env::var("JINA_API_KEY").expect("JINA_API_KEY");
         let auth_header = format!("Bearer {}", api_key);
 
@@ -306,36 +271,24 @@ pub mod embeddor {
                 "model": "jina-clip-v2",
                 "encoding_type": "float",
                 "input": [
-                    {"image": 
-                    "https://picsum.photos/200/300"
-            }
+                    {"image": base64_image}
                 ]
             }))
             .send()
-            .await
-            .ok()?;
+            .await?;
 
-        println!("Response status: {}", response.status());
         
-        let response_json = response.json::<serde_json::Value>().await.ok()?;
-        println!("Response body: {:?}", response_json);
+        let response_json = response.json::<serde_json::Value>().await?;
 
         // Extract embedding if successful
         let embedding = response_json["data"][0]["embedding"]
-            .as_array()?
+            .as_array().ok_or("Could not convert embedding to array")?
             .iter()
             .map(|v| v.as_f64().unwrap() as f32)
             .collect::<Vec<f32>>();
-        Some(embedding)
+        Ok(embedding)
     }
 
-
-
-
-    // pub fn get_supported_files() -> [&'static str; 2] {
-    //     // returns files which allow for an embeddor to be used
-    //     return SUPPORTED_FILES;
-    // }
 }
 
 
@@ -344,11 +297,10 @@ pub mod setup {
 
     pub fn init() {
         // creates a simple SQL database with two columns vector and pathd
-        let status = super::sql_accessor::make_sql_table();
-        match status {
-            Ok(_v) => println!("Was sucessful"),
-            Err(e) => println!("Unable to create database {e:?}"),
-        }
+        if let Err(e) = super::sql_accessor::make_sql_table() {
+
+            println!("Unable to create database {e:?}");
+        } 
     }
 }
 

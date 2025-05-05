@@ -30,6 +30,7 @@ Keeps track of file movements and uses text prompts to search for files told to 
 2. watch
 3. search
 4. help
+5. abandon
 
 
 
