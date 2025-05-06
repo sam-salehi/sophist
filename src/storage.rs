@@ -1,10 +1,17 @@
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use rusqlite;
+use crate::types::Embedding;
 
 #[derive(Serialize, Deserialize)]
 struct EmbeddingData {
-    values: Vec<f32>
+    values: Embedding
+}
+
+#[derive(Debug)]
+struct PathSimilarity {
+    path: String,
+    similarity: f32,
 }
 
 fn get_connection() -> rusqlite::Connection{
@@ -27,7 +34,7 @@ pub fn make_sql_table() -> Result<(),rusqlite::Error> {
 }
 
 
-pub fn insert_embedding(address: &str, embedding: Vec<f32>) -> Result<(), rusqlite::Error> {
+pub fn insert_embedding(address: &str, embedding: Embedding) -> Result<(), rusqlite::Error> {
     let conn = get_connection();
     let blob = serde_json::to_vec(&EmbeddingData { values: embedding }) 
         .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
@@ -56,7 +63,7 @@ pub fn insert_embedding(address: &str, embedding: Vec<f32>) -> Result<(), rusqli
     Ok(())
 }
 
-pub fn get_embedding(address: &str) -> Result<Vec<f32>, rusqlite::Error> {
+pub fn get_embedding(address: &str) -> Result<Embedding, rusqlite::Error> {
     let conn = get_connection();
     let mut stmt = conn.prepare("SELECT emb FROM FILES WHERE path = ?1")?;
     let blob: Vec<u8> = stmt.query_row(&[address], |row| row.get(0))?;
@@ -93,4 +100,66 @@ pub fn remove_row(abs_path: &str) {
     ).expect("Unable to execute SQL query.");
     
     println!("Successfully removed {} from database", abs_path);
+}
+
+
+pub fn get_all_rows() -> Result<Vec<(String, Embedding)>, rusqlite::Error> {
+    let conn = get_connection();
+    let mut stmt = conn.prepare("SELECT path, emb FROM FILES")?;
+    let rows = stmt.query_map([], |row| {
+        let path: String = row.get(0)?;
+        let blob: Vec<u8> = row.get(1)?;
+        
+        let embedding_data: EmbeddingData = serde_json::from_slice(&blob)
+            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Blob,
+                Box::new(e)
+            ))?;
+            
+        Ok((path, embedding_data.values))
+    })?;
+    
+    rows.collect()
+}
+
+
+pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<String>, rusqlite::Error> {
+    let rows = get_all_rows()?;
+
+    let mut similarities: Vec<PathSimilarity> = rows.into_iter()
+        .map(|(path, emb)| PathSimilarity {
+            path,
+            similarity: cosine_sim(query_embedding.clone(), emb)
+        })
+        .collect();
+
+    // Sort by similarity in descending order
+    similarities.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
+
+    // Take top k paths
+    let paths: Vec<String> = similarities.into_iter()
+        .take(k as usize)
+        .map(|ps| {
+            println!("Path: {}, Similarity: {:.4}", ps.path, ps.similarity);
+            ps.path
+        })
+        .collect();
+
+    Ok(paths)
+}
+
+
+fn cosine_sim(a: Embedding, b: Embedding) -> f32 {
+    assert_eq!(a.len(), b.len(), "Vectors must be of equal length");
+    
+    let dot_product: f32 = a.iter()
+        .zip(b.iter())
+        .map(|(x, y)| x * y)
+        .sum();
+
+    let magnitude_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let magnitude_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+
+    dot_product / (magnitude_a * magnitude_b)
 }

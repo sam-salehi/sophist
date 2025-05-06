@@ -6,5 +6,7 @@ pub mod debugger;
 pub mod storage;
 pub mod embeddor;
 pub mod utils;
+pub mod types;
+pub use types::Embedding;
 
 

@@ -22,6 +22,17 @@ Keeps track of file movements and uses text prompts to search for files told to 
 
 
 
+# adding cosine similarity:
+1. get search prompt from user (stalker)
+2. get count from user (stalker)
+// cosine sim logic.
+3. pass to clip model to embedd (embeddor)
+4. do cosine similarity with saved vectors (embeddor)
+5. return k of those with highest cosine similarity's abs_path (embedder)
+
+
+
+
 
 ## printing a command branch would be pretty cool too.
 
@@ -69,3 +80,5 @@ brew install poppler
     watch them for any moves and update database accordingly.
 3. search
     
+
+

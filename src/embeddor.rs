@@ -1,12 +1,13 @@
 use core::panic;
 use std::process::Command;
 use crate::utils::{self, GENERAL_TEXT_TYPES,GENERAL_IMAGE_TYPE, UNIQUE_TEXT_TYPES};
+use crate::types::Embedding;
 
 
 // todo refactor into constituent parts
 
 
-pub async fn get_embedding(abs_path: &str) -> Option<Vec<f32>> {
+pub async fn get_embedding(abs_path: &str) -> Option<Embedding> {
     utils::validate_file(abs_path);
 
     let file_type = if let Some(pos) = abs_path.find('.') {
@@ -15,7 +16,7 @@ pub async fn get_embedding(abs_path: &str) -> Option<Vec<f32>> {
         ""
     };
 
-    let embedding: Option<Vec<f32>> = match file_type {
+    let embedding: Option<Embedding> = match file_type {
         ext if GENERAL_TEXT_TYPES.contains(&ext)=> get_general_text_embedding(abs_path).await,
         ".pdf" => get_pdf_embedding(abs_path).await,
         ".doc"=>get_doc_embedding(abs_path).await,
@@ -28,8 +29,12 @@ pub async fn get_embedding(abs_path: &str) -> Option<Vec<f32>> {
 }
 
 
+pub async fn generate_query_embedding(query: String, count: u32)-> Option<Embedding> {
+    generate_jina_text_embedding(&query).await
+}
 
-async fn get_pdf_embedding(abs_path: &str) -> Option<Vec<f32>> {
+
+async fn get_pdf_embedding(abs_path: &str) -> Option<Embedding> {
     assert!(abs_path.contains(".pdf"));
     let file_path = if let Some(pos) = abs_path.find(".") {
         &abs_path[..pos]
@@ -46,13 +51,13 @@ async fn get_pdf_embedding(abs_path: &str) -> Option<Vec<f32>> {
         get_general_text_embedding(&text_path).await
 }
 
-async fn get_general_text_embedding(abs_path: &str) ->  Option<Vec<f32>> {
+async fn get_general_text_embedding(abs_path: &str) ->  Option<Embedding> {
     utils::validate_file(abs_path);
     let content = std::fs::read_to_string(abs_path).ok()?;
     generate_embedding(&content).await
 }
 
-async fn get_general_image_embedding(abs_path: &str) -> Option<Vec<f32>> {
+async fn get_general_image_embedding(abs_path: &str) -> Option<Embedding> {
     // handle errors here. Return Option
     match generate_jina_image_embedding(abs_path).await {
         Ok(emb) => Some(emb),
@@ -66,14 +71,14 @@ async fn get_general_image_embedding(abs_path: &str) -> Option<Vec<f32>> {
 
 
 
-async fn get_doc_embedding(abs_path: &str) -> Option<Vec<f32>> {   
+async fn get_doc_embedding(abs_path: &str) -> Option<Embedding> {   
     // TODO
     assert!(abs_path.contains(".doc"));
     panic!("Not yet implemented");
     None
 } 
 
-async fn generate_embedding(content: &str) -> Option<Vec<f32>> {
+async fn generate_embedding(content: &str) -> Option<Embedding> {
     let summary = generate_gemini_summary(content).await.ok()?;
     generate_jina_text_embedding(&summary).await
 }
@@ -124,7 +129,7 @@ async fn generate_gemini_summary(content: &str) -> Result<String, Box<dyn std::e
     Ok(summary)
 }
 
-async fn generate_jina_text_embedding(content: &str) -> Option<Vec<f32>> {
+async fn generate_jina_text_embedding(content: &str) -> Option<Embedding> {
     let api_key = std::env::var("JINA_API_KEY").expect("JINA_API_KEY");
     let auth_header = format!("Bearer {}", api_key);
 
@@ -150,12 +155,12 @@ async fn generate_jina_text_embedding(content: &str) -> Option<Vec<f32>> {
         .as_array()?
         .iter()
         .map(|v| v.as_f64().unwrap() as f32)
-        .collect::<Vec<f32>>();
+        .collect::<Embedding>();
 
     Some(embedding)
 }
 
-async fn generate_jina_image_embedding(abs_path: &str) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+async fn generate_jina_image_embedding(abs_path: &str) -> Result<Embedding, Box<dyn std::error::Error>> {
     // Check if file exists and is a supported image type
 
     let path = std::path::Path::new(abs_path);
@@ -195,7 +200,7 @@ async fn generate_jina_image_embedding(abs_path: &str) -> Result<Vec<f32>, Box<d
         .as_array().ok_or("Could not convert embedding to array")?
         .iter()
         .map(|v| v.as_f64().unwrap() as f32)
-        .collect::<Vec<f32>>();
+        .collect::<Embedding>();
     Ok(embedding)
 }
 
