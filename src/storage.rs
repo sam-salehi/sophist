@@ -91,7 +91,7 @@ pub fn path_exists(abs_path: &str) -> bool {
 }
 
 pub fn remove_row(abs_path: &str) {
-    assert!(path_exists(abs_path));
+    assert!(path_exists(abs_path), "Path being asked to remove does not exist in database.");
     
     let conn = get_connection();
     conn.execute(
@@ -122,6 +122,8 @@ pub fn get_all_rows() -> Result<Vec<(String, Embedding)>, rusqlite::Error> {
     
     rows.collect()
 }
+
+
 
 
 pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<String>, rusqlite::Error> {
@@ -162,4 +164,14 @@ fn cosine_sim(a: Embedding, b: Embedding) -> f32 {
     let magnitude_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
 
     dot_product / (magnitude_a * magnitude_b)
+}
+
+pub fn update_path(old_path: &str, new_path: &str) -> Result<(), rusqlite::Error> {
+    let conn = get_connection();
+    conn.execute(
+        "UPDATE FILES SET path = ?1 WHERE path = ?2",
+        (&new_path, &old_path)
+    )?;
+    println!("Updated path in database from {} to {}", old_path, new_path);
+    Ok(())
 }

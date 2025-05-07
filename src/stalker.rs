@@ -1,6 +1,8 @@
 use crate::utils;
 use std::path::Path;
 use crate::{embeddor::{get_embedding,generate_query_embedding}, storage};
+use std::process::Command;
+
 
 pub async fn begin_watch() {
     let file_path = std::env::args().nth(2).unwrap();
@@ -22,9 +24,11 @@ pub async fn begin_watch() {
     let stat = storage::insert_embedding(&abs_path, embedding);
 
     match stat {
-        Ok(_) => println!("sucessfuly stalking {file_path}"),
+        Ok(_) => println!("sucessfuly inserted embeddings"),
         Err(e) => println!("Encountered error modifying SQL table: {e} ")
     }
+    // actually begin stalking
+    stalk(&abs_path);
 }
 
 
@@ -89,3 +93,45 @@ fn ask_for_query() -> String {
     }
 }
 
+// fn stalk(abs_path: &str) {
+//     let (tx, rx) = channel();
+
+//     let mut watcher = RecommendedWatcher::new(tx, Config::default())
+//         .expect("Failed to create watcher");
+
+//     watcher.watch(Path::new(abs_path), RecursiveMode::Recursive)
+//         .expect("Failed to start watching path");
+
+//     println!("Started watching {}", abs_path);
+    
+//     loop {
+//         match rx.recv() {
+//             Ok(event) => {
+//                 println!("Event: {:?}", event);
+//                 if let Some(paths) = event.unwrap().paths.get(0..2) {
+//                     if paths.len() == 2 {
+//                         println!("File moved from {:?} to {:?}", paths[0], paths[1]);
+//                     }
+//                 }
+//             }
+//             Err(e) => println!("Watch error: {:?}", e),
+//         }
+//     }
+// }
+
+
+fn stalk(abs_path: &str) -> notify::Result<()> {
+    println!("Starting Python file watcher...");
+    
+    let status = Command::new("python3")
+        .arg("src/scripts/stalker.py")
+        .arg(abs_path)
+        .status()
+        .expect("Failed to execute Python script");
+
+    if !status.success() {
+        println!("Python script failed with exit code: {}", status);
+    }
+
+    Ok(())
+}
