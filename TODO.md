@@ -82,3 +82,10 @@ brew install poppler
     
 
 
+
+
+
+1. write code for handle_moved
+2. write code for handle_modified
+3. Figure out how to make Daeomon
+4. think about features rust must send to daemon. E.g. stop tracking file.

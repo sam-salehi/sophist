@@ -42,10 +42,10 @@ def main():
     # commands are used to modify tacked_files.json which is monitored by daemon
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python stalker.py watch          # Start watching files")
-        print("  python stalker.py add <file>     # Add file to watch list")
-        print("  python stalker.py remove <file>  # Remove file from watch list")
-        print("  python stalker.py list           # List tracked files")
+        print("  python daeomon.py watch          # Start watching files")
+        print("  python daeomon.py add <file>     # Add file to watch list")
+        print("  python daeomon.py remove <file>  # Remove file from watch list")
+        print("  python daeomon.py list           # List tracked files")
         sys.exit(1)
 
     command = sys.argv[1]

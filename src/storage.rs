@@ -172,6 +172,5 @@ pub fn update_path(old_path: &str, new_path: &str) -> Result<(), rusqlite::Error
         "UPDATE FILES SET path = ?1 WHERE path = ?2",
         (&new_path, &old_path)
     )?;
-    println!("Updated path in database from {} to {}", old_path, new_path);
     Ok(())
 }

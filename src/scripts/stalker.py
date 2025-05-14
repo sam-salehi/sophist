@@ -34,7 +34,7 @@ class Stalker(FileSystemEventHandler):
         
     def remove_file(self, path):
         basename = os.path.basename(path)
-        if basename in self.tracked_files:
+        if basename in self.tracked_files and self.tracked_files[basename]==path:
             del self.tracked_files[basename]
             self.save_tracked_files()
             print(f"Stopped tracking: {path}")

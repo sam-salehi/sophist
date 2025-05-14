@@ -29,7 +29,7 @@ pub async fn get_embedding(abs_path: &str) -> Option<Embedding> {
 }
 
 
-pub async fn generate_query_embedding(query: String, count: u32)-> Option<Embedding> {
+pub async fn generate_query_embedding(query: String)-> Option<Embedding> {
     generate_jina_text_embedding(&query).await
 }
 
@@ -69,13 +69,10 @@ async fn get_general_image_embedding(abs_path: &str) -> Option<Embedding> {
 
 }
 
-
-
 async fn get_doc_embedding(abs_path: &str) -> Option<Embedding> {   
     // TODO
     assert!(abs_path.contains(".doc"));
     panic!("Not yet implemented");
-    None
 } 
 
 async fn generate_embedding(content: &str) -> Option<Embedding> {

@@ -11,17 +11,7 @@ pub async fn begin_watch() {
     let abs_path_buf = Path::new(&file_path).canonicalize().unwrap();
     let abs_path = abs_path_buf.to_string_lossy().to_string();
 
-    let embedding_res = get_embedding(&abs_path).await;
-    
-    let embedding = match embedding_res {
-        Some(emb) => emb,
-        None => {
-            println!("Encountered error generating embeddings:");
-            println!("Terminating process");
-            std::process::exit(1)
-        }
-    };
-    let stat = storage::insert_embedding(&abs_path, embedding);
+    let stat = generate_and_push_embedding(&abs_path).await;
 
     match stat {
         Ok(_) => println!("sucessfuly inserted embeddings"),
@@ -30,6 +20,22 @@ pub async fn begin_watch() {
     // actually begin stalking
     stalk(&abs_path);
 }
+
+
+pub async fn generate_and_push_embedding(abs_path: &str)-> Result<(),rusqlite::Error> {
+    let embedding_res = get_embedding(&abs_path).await;
+    
+    let embedding = match embedding_res {
+        Some(emb) => emb,
+        None => {
+            println!("Encountered error generating embeddings:");
+            println!("Terminating process");
+            std::process::exit(1) // ! not idiomatic
+        }
+    };
+    storage::insert_embedding(&abs_path, embedding)
+}
+
 
 
 pub fn abandon_watch() {
@@ -44,6 +50,7 @@ pub fn abandon_watch() {
     }
     storage::remove_row(&abs_path);        
     // todo stop tracking file.
+    abandon(&abs_path);
 }
 
 
@@ -51,7 +58,7 @@ pub async fn semantic_search() {
     let count: u32 = ask_for_file_count();
     let query: String = ask_for_query();
 
-    let q_emb = match generate_query_embedding(query, count).await {
+    let q_emb = match generate_query_embedding(query).await {
         Some(emb) => emb,
         None => {
             println!("Failed to generate embedding for query");
@@ -119,18 +126,38 @@ fn ask_for_query() -> String {
 //     }
 // }
 
+// TODO move these to stalker sub-module.
+const DAEOMON_PATH: &str = "src/scripts/daemon.py";
 
 fn stalk(abs_path: &str) -> notify::Result<()> {
-    println!("Starting Python file watcher...");
+    println!("Adding path to stalk watcher");
     
     let status = Command::new("python3")
-        .arg("src/scripts/stalker.py")
+        .arg(DAEOMON_PATH)
+        .arg("add")
         .arg(abs_path)
         .status()
-        .expect("Failed to execute Python script");
+        .expect(&format!("Failed to execute Python script at {}",DAEOMON_PATH));
 
     if !status.success() {
-        println!("Python script failed with exit code: {}", status);
+        println!("Daemon's stalk init failed with exit code: {}", status);
+    }
+
+    Ok(())
+}
+
+
+fn abandon(abs_path: &str) -> notify::Result<()> {
+    println!("Abandoning file");
+    let status = Command::new("python3")
+        .arg(DAEOMON_PATH)
+        .arg("remove")
+        .arg(abs_path)
+        .status()
+        .expect(&format!("Failed to execute Python script at {}",DAEOMON_PATH));
+
+    if !status.success() {
+        print!("Daemon's abandon failed with exit code: {}",status);
     }
 
     Ok(())
