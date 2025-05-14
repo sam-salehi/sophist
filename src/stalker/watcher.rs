@@ -1,7 +1,7 @@
 use crate::utils;
 use std::path::Path;
 use crate::{embeddor::{get_embedding,generate_query_embedding}, storage};
-use std::process::Command;
+use super::python;
 
 
 pub async fn begin_watch() {
@@ -18,7 +18,8 @@ pub async fn begin_watch() {
         Err(e) => println!("Encountered error modifying SQL table: {e} ")
     }
     // actually begin stalking
-    stalk(&abs_path);
+    // TODO handle
+    python::stalk(&abs_path);
 }
 
 
@@ -49,8 +50,8 @@ pub fn abandon_watch() {
         return;
     }
     storage::remove_row(&abs_path);        
-    // todo stop tracking file.
-    abandon(&abs_path);
+    // TODO handle
+    python::abandon(&abs_path);
 }
 
 
@@ -98,67 +99,4 @@ fn ask_for_query() -> String {
         }
         return query
     }
-}
-
-// fn stalk(abs_path: &str) {
-//     let (tx, rx) = channel();
-
-//     let mut watcher = RecommendedWatcher::new(tx, Config::default())
-//         .expect("Failed to create watcher");
-
-//     watcher.watch(Path::new(abs_path), RecursiveMode::Recursive)
-//         .expect("Failed to start watching path");
-
-//     println!("Started watching {}", abs_path);
-    
-//     loop {
-//         match rx.recv() {
-//             Ok(event) => {
-//                 println!("Event: {:?}", event);
-//                 if let Some(paths) = event.unwrap().paths.get(0..2) {
-//                     if paths.len() == 2 {
-//                         println!("File moved from {:?} to {:?}", paths[0], paths[1]);
-//                     }
-//                 }
-//             }
-//             Err(e) => println!("Watch error: {:?}", e),
-//         }
-//     }
-// }
-
-// TODO move these to stalker sub-module.
-const DAEOMON_PATH: &str = "src/scripts/daemon.py";
-
-fn stalk(abs_path: &str) -> notify::Result<()> {
-    println!("Adding path to stalk watcher");
-    
-    let status = Command::new("python3")
-        .arg(DAEOMON_PATH)
-        .arg("add")
-        .arg(abs_path)
-        .status()
-        .expect(&format!("Failed to execute Python script at {}",DAEOMON_PATH));
-
-    if !status.success() {
-        println!("Daemon's stalk init failed with exit code: {}", status);
-    }
-
-    Ok(())
-}
-
-
-fn abandon(abs_path: &str) -> notify::Result<()> {
-    println!("Abandoning file");
-    let status = Command::new("python3")
-        .arg(DAEOMON_PATH)
-        .arg("remove")
-        .arg(abs_path)
-        .status()
-        .expect(&format!("Failed to execute Python script at {}",DAEOMON_PATH));
-
-    if !status.success() {
-        print!("Daemon's abandon failed with exit code: {}",status);
-    }
-
-    Ok(())
 }

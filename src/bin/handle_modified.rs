@@ -14,4 +14,3 @@ async fn main() {
 
     generate_and_push_embedding(&abs_path).await;
 
-}
