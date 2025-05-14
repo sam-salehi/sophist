@@ -15,26 +15,25 @@ pub async fn begin_watch() {
 
     match stat {
         Ok(_) => println!("sucessfuly inserted embeddings"),
-        Err(e) => println!("Encountered error modifying SQL table: {e} ")
+        Err(e) => eprintln!("Encountered issue generating and pushing embeddings: {} ",e)
     }
     // actually begin stalking
-    // TODO handle
-    python::stalk(&abs_path);
+    if let Err(e) = python::stalk(&abs_path) {
+        eprintln!("Error running script: {}",e);
+    }
 }
 
-
-pub async fn generate_and_push_embedding(abs_path: &str)-> Result<(),rusqlite::Error> {
+pub async fn generate_and_push_embedding(abs_path: &str) -> Result<(), Box<dyn std::error::Error>> {
     let embedding_res = get_embedding(&abs_path).await;
     
-    let embedding = match embedding_res {
-        Some(emb) => emb,
-        None => {
-            println!("Encountered error generating embeddings:");
-            println!("Terminating process");
-            std::process::exit(1) // ! not idiomatic
-        }
+    let emb = if let Some(emb) = embedding_res {
+        emb
+    } else {
+        return Err("Unable to generate embeddings".into());
     };
-    storage::insert_embedding(&abs_path, embedding)
+
+    storage::insert_embedding(&abs_path, emb)
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
 }
 
 
@@ -50,10 +49,10 @@ pub fn abandon_watch() {
         return;
     }
     storage::remove_row(&abs_path);        
-    // TODO handle
-    python::abandon(&abs_path);
+    if let Err(e) = python::abandon(&abs_path) {
+        eprintln!("Error running script: {}",e);
+    }
 }
-
 
 pub async fn semantic_search() {
     let count: u32 = ask_for_file_count();

@@ -85,7 +85,12 @@ brew install poppler
 
 
 
-1. write code for handle_moved
-2. write code for handle_modified
-3. Figure out how to make Daeomon
-4. think about features rust must send to daemon. E.g. stop tracking file.
+TODO
+1. Handle the exceptions setout or remove them (done)
+6. fix tsv bug gemini key bug (done)
+2. test move,modified and delete scripts that are called by deamon. (Done)
+3. figure out how to launch daemon with init
+4. only allow init if vectors db doesn't exist
+5. add gemini and jina api key's to init
+7. do some tesitng.
+8. Bundle the entire app

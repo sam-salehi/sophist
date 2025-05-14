@@ -54,9 +54,17 @@ class Stalker(FileSystemEventHandler):
 
         for src_path,dest_path in descendants:
             src_name = os.path.basename(event.src_path)
+            dest_name = os.path.basename(event.dest_path) 
             if src_name in self.tracked_files and self.tracked_files[src_name] == src_path:
                 print(f"Tracked file moved: {src_path} -> {dest_path}")
-                self.tracked_files[src_name] = dest_path
+
+                if src_name == dest_name: # chekc for basename change
+                    self.tracked_files[src_name] = dest_path
+                else:
+                    self.tracked_files[dest_name] = dest_path
+                    del self.tracked_files[src_name]
+
+
                 self.save_tracked_files()            
                 try:
                     self.execute_rs("handle_move",[src_path,dest_path])
@@ -82,7 +90,7 @@ class Stalker(FileSystemEventHandler):
         if basename in self.tracked_files and self.tracked_files[basename] == event.src_path:
             print(f"File modified: {event.src_path}")
             try:
-                self.execute_rs("handle_modify",[event.src_path])
+                self.execute_rs("handle_modified",[event.src_path])
             except Exception as e:
                 print(f"Failed to handle modification at {event.src_path}:\n {e}")
 
@@ -94,9 +102,9 @@ class Stalker(FileSystemEventHandler):
             
         basename = os.path.basename(event.src_path)
         if basename in self.tracked_files:
-            print(f"Tracked file deleted: {event.src_path}")
+            print(f"Removing tracked file: {event.src_path}")
             try:
-                rc = self.execute_rs("handle_delete", event.src_path)
+                rc = self.execute_rs("handle_delete", [event.src_path])
                 if rc == 0:
                     del self.tracked_files[basename]
                     self.save_tracked_files()
@@ -104,19 +112,30 @@ class Stalker(FileSystemEventHandler):
                 print(f"Failed to handle deletion: {e}")
 
     def execute_rs(self, exec, args):    
-        # executres rust executables defined in bin
+        # Get current environment and add our variables
+        env = os.environ.copy()
+        
+        # Load .env file
+        env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+        if os.path.exists(env_path):
+            with open(env_path) as f:
+                for line in f:
+                    if '=' in line and not line.startswith('#'):
+                        key, value = line.strip().split('=', 1)
+                        env[key] = value
 
-        # locate rust executable. Assuming compiled
+        # locate and run executable
         base_dir = os.path.join(os.path.dirname(__file__), "..", "..")
         binary_path = os.path.join(base_dir, "target", "debug", exec)
         if not os.path.exists(binary_path):
             raise FileNotFoundError(f"Binary not found: {exec}")
-        # run executable
+            
         result = subprocess.run([binary_path] + args,
-                                     capture_output=True,
-                                     text=True,
-                                     cwd="../..") 
-        # check result
+                              capture_output=True,
+                              text=True,
+                              cwd="../..",
+                              env=env)  # Pass environment variables
+        
         print(result.stdout)
         if result.stderr:
             print(result.stderr)

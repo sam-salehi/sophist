@@ -3,7 +3,6 @@
 
 use sophist::storage::update_path;
 
-// TODO check behavior
 fn main() {
     println!("Pinged for movement");
     let src_path = std::env::args().nth(1).expect("Source path required");

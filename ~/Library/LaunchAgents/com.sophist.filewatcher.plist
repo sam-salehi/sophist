@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sophist.filewatcher</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/samsalehi/Desktop/PersonalProjects/sophist/src/scripts/daemon.py</string>
+        <string>watch</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>GEMINI_API_KEY</key>
+        <string>AIzaSyDPX-BpYcbVC0MYOhIZZ_htLP9J4w1N9fs</string>
+        <key>JINA_API_KEY</key>
+        <string>jina_5e0ce0fe986b4a14a15666544bc361dfdGYqTGZ_vdHM9ZzoGEozDWPbeOCr</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/samsalehi/Desktop/PersonalProjects/sophist</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/samsalehi/Desktop/PersonalProjects/sophist</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/samsalehi/Library/Logs/sophist.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/samsalehi/Library/Logs/sophist.error.log</string>
+</dict>
+</plist> 

@@ -7,7 +7,7 @@ pub(crate) fn stalker_init() {
     //TODO
 }
 
-pub(crate) fn stalk(abs_path: &str) -> notify::Result<()> {
+pub(crate) fn stalk(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
     println!("Adding file to watch");
     
     
@@ -19,13 +19,13 @@ pub(crate) fn stalk(abs_path: &str) -> notify::Result<()> {
         .expect(&format!("Failed to execute Python script at {}", DAEMON_PATH));
 
     if !status.success() {
-        println!("Daemon's add failed with exit code: {}", status);
+        let err_msg = format!("Daemon's add failed with exit code: {}", status);
+        return Err(err_msg.into());
     }
-
     Ok(())
 }
 
-pub(crate) fn abandon(abs_path: &str) -> notify::Result<()> {
+pub(crate) fn abandon(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
     println!("Abandoning file");
     
     let status = Command::new("python3")
@@ -36,7 +36,8 @@ pub(crate) fn abandon(abs_path: &str) -> notify::Result<()> {
         .expect(&format!("Failed to execute Python script at {}", DAEMON_PATH));
 
     if !status.success() {
-        print!("Daemon's abandon failed with exit code: {}", status);
+        let err_msg = format!("Daemon's abandon failed with exit code: {}", status);   
+        return Err(err_msg.into());
     }
     Ok(())
 }
