@@ -90,13 +90,13 @@ fn setup_macos_daemon(daemon_path: &std::path::Path) {
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>{}/Library/Logs/sophist.log</string>
+    <string>{}/library/logs/sophist.log</string>
     <key>StandardErrorPath</key>
-    <string>{}/Library/Logs/sophist.error.log</string>
+    <string>{}/library/logs/sophist.error.log</string>
 </dict>
 </plist>"#, 
         abs_daemon_path.display(),
-        abs_daemon_path.display(), //.parent().unwrap().display(), // for PYTHONPATH
+        abs_daemon_path.display(),  // for PYTHONPATH
         abs_daemon_path.parent().unwrap().parent().unwrap().display(), // project root for WorkingDirectory
         home_dir,
         home_dir
