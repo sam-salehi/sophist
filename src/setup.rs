@@ -27,6 +27,8 @@ fn setup_daemon() {
     }
 }
 
+// installation of packages with /usr/bin/python3 -m pip install watchdog
+
 fn setup_macos_daemon(daemon_path: &std::path::Path) {
     println!("Setting up daemon for macOS...");
     
@@ -137,3 +139,5 @@ fn setup_linux_daemon(daemon_path: &std::path::Path) {
 //     // TODO: Create Windows service
 // }
 // question: how the fuck do daeons work.
+
+

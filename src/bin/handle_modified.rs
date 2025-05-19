@@ -3,7 +3,6 @@
 
 use sophist::stalker::generate_and_push_embedding;
 
-// TODO check behaviour
 #[tokio::main]
 async fn main() {
     let abs_path = std::env::args().nth(1).expect("Path to modified file must be passed");

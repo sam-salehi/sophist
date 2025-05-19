@@ -80,11 +80,6 @@ async fn generate_embedding(content: &str) -> Option<Embedding> {
     generate_jina_text_embedding(&summary).await
 }
 
-
-// could begin by asking Gemini to crate a summary of the file, 
-// and crate an embedding from the result.
-// could cut large modules in this way.
-
 const SUMMARY_CONTEXT: &str = "
     Please provide a summary of 3 paragraphs or 
     less for the following content, focusing on 

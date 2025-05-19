@@ -3,13 +3,8 @@ use std::process::Command;
 const DAEMON_PATH: &str = "src/scripts/daemon.py";
 
 
-pub(crate) fn stalker_init() {
-    //TODO
-}
-
 pub(crate) fn stalk(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
     println!("Adding file to watch");
-    
     
     let status: std::process::ExitStatus = Command::new("python3")
         .arg(DAEMON_PATH)
