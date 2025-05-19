@@ -151,7 +151,6 @@ pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<Strin
     Ok(paths)
 }
 
-
 fn cosine_sim(a: Embedding, b: Embedding) -> f32 {
     assert_eq!(a.len(), b.len(), "Vectors must be of equal length");
     

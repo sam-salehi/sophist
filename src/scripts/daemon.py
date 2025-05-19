@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# figure out setup in linux environment: https://levelup.gitconnected.com/from-python-to-daemon-how-to-turn-your-python-app-into-a-linux-service-controlled-by-systemd-d87b59adfe7a
 import sys
 import time
 import os

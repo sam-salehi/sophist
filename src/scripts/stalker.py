@@ -94,8 +94,6 @@ class Stalker(FileSystemEventHandler):
             except Exception as e:
                 print(f"Failed to handle modification at {event.src_path}:\n {e}")
 
-            
-
     def on_deleted(self, event):
         if event.is_directory:
             return
