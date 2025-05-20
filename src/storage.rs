@@ -20,6 +20,7 @@ fn get_connection() -> rusqlite::Connection{
 }
 
 pub fn make_sql_table() -> Result<(),rusqlite::Error> {
+    // make sql dabatase if not already existing. Persists across inits.
     let conn = get_connection();
     conn.execute_batch("
         BEGIN;

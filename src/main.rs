@@ -16,6 +16,8 @@ async fn main() {
         "abandon" => abandon_watch(),
         "search" => semantic_search().await, 
         "debug" => debugger::find_embedding(second_arg.unwrap()).await,
+        "shutdown" => setup::shutdown(),
+        "help" => panic!("Help command not yet setup"),
         _ => handle_invalid_command(command),
     }
 }

@@ -1,11 +1,10 @@
 use core::panic;
 use std::process::Command;
-use crate::utils::{self, GENERAL_TEXT_TYPES,GENERAL_IMAGE_TYPE, UNIQUE_TEXT_TYPES};
+use crate::utils::{self, GENERAL_TEXT_TYPES,GENERAL_IMAGE_TYPE};
 use crate::types::Embedding;
 
 
 // todo refactor into constituent parts
-
 
 pub async fn get_embedding(abs_path: &str) -> Option<Embedding> {
     utils::validate_file(abs_path);
@@ -24,7 +23,6 @@ pub async fn get_embedding(abs_path: &str) -> Option<Embedding> {
         _ => None
     };
 
-    println!("Recieved embedding: {:?}", embedding);
     embedding
 }
 
@@ -59,6 +57,7 @@ async fn get_general_text_embedding(abs_path: &str) ->  Option<Embedding> {
 
 async fn get_general_image_embedding(abs_path: &str) -> Option<Embedding> {
     // handle errors here. Return Option
+    // TODO test image software with image embeddings.
     match generate_jina_image_embedding(abs_path).await {
         Ok(emb) => Some(emb),
         Err(e) => {
@@ -110,9 +109,6 @@ async fn generate_gemini_summary(content: &str) -> Result<String, Box<dyn std::e
         .json::<serde_json::Value>()
         .await
         .ok().unwrap();
-
-    // Extract the summary text from response
-    println!("Recived response: {}", response);
 
     let summary = response["candidates"][0]["content"]["parts"][0]["text"]
         .as_str()
@@ -195,6 +191,3 @@ async fn generate_jina_image_embedding(abs_path: &str) -> Result<Embedding, Box<
         .collect::<Embedding>();
     Ok(embedding)
 }
-
-
-

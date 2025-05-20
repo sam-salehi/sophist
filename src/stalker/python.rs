@@ -4,7 +4,6 @@ const DAEMON_PATH: &str = "src/scripts/daemon.py";
 
 
 pub(crate) fn stalk(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
-    println!("Adding file to watch");
     
     let status: std::process::ExitStatus = Command::new("python3")
         .arg(DAEMON_PATH)
@@ -21,7 +20,6 @@ pub(crate) fn stalk(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
 }
 
 pub(crate) fn abandon(abs_path: &str) -> Result<(),Box<dyn std::error::Error>> {
-    println!("Abandoning file");
     
     let status = Command::new("python3")
         .arg(DAEMON_PATH)

@@ -89,8 +89,9 @@ TODO
 1. Handle the exceptions setout or remove them (done)
 6. fix tsv bug gemini key bug (done)
 2. test move,modified and delete scripts that are called by deamon. (Done)
-3.refactor and remove shitty println! statements.
-3. figure out how to launch daemon with init
-4. only allow init if vectors db doesn't exist
-5. add gemini and jina api key's to init
+3.refactor and remove shitty println! statements. (Done)
+3. figure out how to launch daemon with init (Done)
+4. only allow init if deamon isn't launched
+5. add gemini and jina api key's to init (Done)
+6. implement shutdown and help commands.
 8. Bundle the entire thing
