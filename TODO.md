@@ -95,3 +95,6 @@ TODO
 5. add gemini and jina api key's to init (Done)
 6. implement shutdown and help commands.
 8. Bundle the entire thing
+9. Scrap sql databse stuff. Just modify json file
+10. remove entries in bin (do equivalent through modification of json file)
+
