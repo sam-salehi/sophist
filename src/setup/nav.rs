@@ -14,7 +14,7 @@ pub fn init() {
     }
     
     println!("Daemon dead");
-    if let Err(e) = storage::make_sql_table() { // ! modify with udpated code.
+    if let Err(e) = storage::make_table() { // ! modify with udpated code.
         println!("Unable to create database {e:?}");
     } 
 

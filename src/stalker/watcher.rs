@@ -1,7 +1,6 @@
 use crate::utils;
 use std::path::Path;
 use crate::{embeddor::{get_embedding,generate_query_embedding}, storage};
-use super::python;
 
 
 pub async fn begin_watch() {
@@ -16,10 +15,6 @@ pub async fn begin_watch() {
     match stat {
         Ok(_) => println!("sucessfuly inserted embeddings"),
         Err(e) => eprintln!("Encountered issue generating and pushing embeddings: {} ",e)
-    }
-    // actually begin stalking
-    if let Err(e) = python::stalk(&abs_path) {
-        eprintln!("Error running script: {}",e);
     }
 }
 
@@ -48,10 +43,7 @@ pub fn abandon_watch() {
         println!("Given path was not found in database: {}",abs_path);
         return;
     }
-    storage::remove_row(&abs_path);        
-    if let Err(e) = python::abandon(&abs_path) {
-        eprintln!("Error running script: {}",e);
-    }
+    storage::remove_row(&abs_path).unwrap();        
 }
 
 pub async fn semantic_search() {

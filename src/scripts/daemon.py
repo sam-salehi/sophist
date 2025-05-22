@@ -14,8 +14,8 @@ home_dir = os.path.expanduser("~")
 log_path = os.path.join(home_dir, "Library", "Logs", "sophist.log")
 error_log_path = os.path.join(home_dir, "Library", "Logs", "sophist.error.log")
 # Redirect stdout and stderr to log files
-sys.stdout = open(log_path, "a")
-sys.stderr = open(error_log_path, "a")
+# sys.stdout = open(log_path, "a")
+# sys.stderr = open(error_log_path, "a")
 
 
 def run_watcher():
@@ -30,11 +30,11 @@ def run_watcher():
     class ConfigHandler(FileSystemEventHandler):
         def on_modified(self, event):
             if event.src_path == CONFIG_FILE:
-                handler.tracked_files = handler.load_tracked_files()
+                handler.handle_tracked_files_change()
                 print(f"Config file modified. Tracking {len(handler.tracked_files)} files.")
     config_observer = Observer()
     config_observer.schedule(ConfigHandler(), os.path.dirname(CONFIG_FILE))
-    
+    print("Starting observor")
     observer.start()
     config_observer.start()
     
@@ -63,15 +63,12 @@ def main():
         sys.exit(1)
 
     command = sys.argv[1]
-    handler = Stalker()
+  
 
     if command == "watch":
         run_watcher()
-    elif command == "add" and len(sys.argv) == 3:
-        handler.add_file(sys.argv[2])
-    elif command == "remove" and len(sys.argv) == 3:
-        handler.remove_file(sys.argv[2])
     elif command == "list":
+        handler = Stalker()
         for name, path in handler.tracked_files.items():
             print(f"{name}: {path}")
     else:

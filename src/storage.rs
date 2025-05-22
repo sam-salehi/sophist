@@ -1,133 +1,123 @@
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
-use rusqlite;
+use serde_json::json;
 use crate::types::Embedding;
+use std::io::Write;
+use std::fs::File;
 
-#[derive(Serialize, Deserialize)]
-struct EmbeddingData {
-    values: Embedding
+struct Entry  {
+    name: String,
+    path:String,
+    vec: Embedding
 }
 
-#[derive(Debug)]
+// ! needs refactoring inits
+
+
+const DATA_PATH: &str = "scripts/tracked_files.json";
+
+pub fn make_table() -> std::io::Result<()> { 
+    let data = json!({
+        "data": []
+    });
+    let json_string = serde_json::to_string_pretty(&data).unwrap();
+    let mut file = File::create(DATA_PATH)?;
+    file.write_all(json_string.as_bytes())?;
+    Ok(())
+}
+
+pub fn insert_embedding(address: &str, embedding: Embedding) -> std::io::Result<()> {
+    let file = File::open(DATA_PATH)?;
+    let mut data: serde_json::Value = serde_json::from_reader(file)?;
+    
+    let entry = Entry {
+        name: address.split('/').last().unwrap_or(address).to_string(),
+        path: address.to_string(),
+        vec: embedding,
+    };
+
+    let entries = data["data"].as_array_mut().unwrap();
+    
+    if let Some(pos) = entries.iter().position(|x| x["path"] == address) {
+        entries[pos] = json!({
+            "name": entry.name,
+            "path": entry.path,
+            "vec": entry.vec
+        });
+    } else {
+        entries.push(json!({
+            "name": entry.name,
+            "path": entry.path,
+            "vec": entry.vec
+        }));
+    }
+
+    let mut file = File::create(DATA_PATH)?;
+    file.write_all(serde_json::to_string_pretty(&data)?.as_bytes())?;
+    Ok(())
+}
+
+
+pub fn get_embedding(address: &str) -> Result<Embedding, std::io::Error> {
+    assert!(path_exists(address),"Path passed to get_embedding must exist in {}.",DATA_PATH);
+    
+    let file = File::open(DATA_PATH)?;
+    let data: serde_json::Value = serde_json::from_reader(file)?;
+    
+    if let Some(entries) = data["data"].as_array() {
+        if let Some(entry) = entries.iter().find(|x| x["path"] == address) {
+            if let Some(vec) = entry["vec"].as_array() {
+                return Ok(vec.iter()
+                    .map(|v| v.as_f64().unwrap() as f32)
+                    .collect());
+            }
+        }
+    }
+    
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "Embedding not found"
+    ))
+}
+
+pub fn path_exists(address: &str) -> bool {
+    if let Ok(file) = File::open(DATA_PATH) {
+        if let Ok(data) = serde_json::from_reader(file) {
+            let data: serde_json::Value = data;
+            if let Some(entries) = data["data"].as_array() {
+                return entries.iter().any(|x| x["path"] == address);
+            }
+        }
+    }
+    false
+}
+
+pub fn remove_row(address: &str) -> std::io::Result<()> {
+    assert!(path_exists(address), "Path to remove must exist in {}", DATA_PATH);
+    
+    let file = File::open(DATA_PATH)?;
+    let mut data: serde_json::Value = serde_json::from_reader(file)?;
+    
+    if let Some(entries) = data["data"].as_array_mut() {
+        if let Some(pos) = entries.iter().position(|x| x["path"] == address) {
+            entries.remove(pos);
+            let mut file = File::create(DATA_PATH)?;
+            file.write_all(serde_json::to_string_pretty(&data)?.as_bytes())?;
+            return Ok(());
+        }
+    }
+    
+    Err(std::io::Error::new(
+        std::io::ErrorKind::NotFound,
+        "Entry not found"
+    ))
+}
+
+
 struct PathSimilarity {
     path: String,
     similarity: f32,
 }
 
-fn get_connection() -> rusqlite::Connection{
-    let conn = rusqlite::Connection::open("vectors.db").expect("Unable to get access to vectors.db");
-    conn
-}
-
-pub fn make_sql_table() -> Result<(),rusqlite::Error> {
-    // make sql dabatase if not already existing. Persists across inits.
-    let conn = get_connection();
-    conn.execute_batch("
-        BEGIN;
-        CREATE TABLE IF NOT EXISTS FILES (
-            id   TEXT PRIMARY KEY,
-            emb  BLOB,
-            path TEXT NOT NULL
-        );
-        COMMIT;
-    ")?;
-    Ok(())
-}
-
-
-pub fn insert_embedding(address: &str, embedding: Embedding) -> Result<(), rusqlite::Error> {
-    let conn = get_connection();
-    let blob = serde_json::to_vec(&EmbeddingData { values: embedding }) 
-        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-            0,
-            rusqlite::types::Type::Blob,
-            Box::new(e)
-        ))?;
-
-    if path_exists(address) {
-        // Update existing row
-        conn.execute(
-            "UPDATE FILES SET emb = ?1 WHERE path = ?2",
-            (&blob, address)
-        )?;
-        println!("Updated embedding for {}", address);
-    } else {
-        // Insert new row
-        let id = Uuid::new_v4().to_string();
-        conn.execute(
-            "INSERT INTO FILES (id, emb, path) VALUES (?1, ?2, ?3)",
-            (&id, &blob, address)
-        )?;
-        println!("Inserted new embedding for {}", address);
-    }
-    
-    Ok(())
-}
-
-pub fn get_embedding(address: &str) -> Result<Embedding, rusqlite::Error> {
-    let conn = get_connection();
-    let mut stmt = conn.prepare("SELECT emb FROM FILES WHERE path = ?1")?;
-    let blob: Vec<u8> = stmt.query_row(&[address], |row| row.get(0))?;
-    
-    let embedding_data: EmbeddingData = serde_json::from_slice(&blob)
-        .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-            0,
-            rusqlite::types::Type::Blob,
-            Box::new(e)
-        ))?;
-        
-    Ok(embedding_data.values)
-}
-
-
-pub fn path_exists(abs_path: &str) -> bool {
-    let conn = get_connection();
-    let mut stmt = conn.prepare("SELECT COUNT(*) FROM FILES WHERE path = ?1")
-        .expect("Failed to prepare statement");
-    
-    let count: i32 = stmt.query_row(&[abs_path], |row| row.get(0))
-        .unwrap_or(0);
-        
-    count > 0
-}
-
-pub fn remove_row(abs_path: &str) {
-    assert!(path_exists(abs_path), "Path being asked to remove does not exist in database.");
-    
-    let conn = get_connection();
-    conn.execute(
-        "DELETE FROM FILES WHERE path = ?1",
-        &[abs_path]
-    ).expect("Unable to execute SQL query.");
-    
-    println!("Successfully removed {} from database", abs_path);
-}
-
-
-pub fn get_all_rows() -> Result<Vec<(String, Embedding)>, rusqlite::Error> {
-    let conn = get_connection();
-    let mut stmt = conn.prepare("SELECT path, emb FROM FILES")?;
-    let rows = stmt.query_map([], |row| {
-        let path: String = row.get(0)?;
-        let blob: Vec<u8> = row.get(1)?;
-        
-        let embedding_data: EmbeddingData = serde_json::from_slice(&blob)
-            .map_err(|e| rusqlite::Error::FromSqlConversionFailure(
-                0,
-                rusqlite::types::Type::Blob,
-                Box::new(e)
-            ))?;
-            
-        Ok((path, embedding_data.values))
-    })?;
-    
-    rows.collect()
-}
-
-
-
-
-pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<String>, rusqlite::Error> {
+pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<String>, std::io::Error> {
     let rows = get_all_rows()?;
 
     let mut similarities: Vec<PathSimilarity> = rows.into_iter()
@@ -152,6 +142,31 @@ pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<Strin
     Ok(paths)
 }
 
+pub fn get_all_rows() -> std::io::Result<Vec<(String, Embedding)>> {
+    let file = File::open(DATA_PATH)?;
+    let data: serde_json::Value = serde_json::from_reader(file)?;
+    
+    if let Some(entries) = data["data"].as_array() {
+        let mut results = Vec::new();
+        
+        for entry in entries {
+            if let (Some(path), Some(vec)) = (
+                entry["path"].as_str(),
+                entry["vec"].as_array()
+            ) {
+                let embedding: Embedding = vec.iter()
+                    .map(|v| v.as_f64().unwrap() as f32)
+                    .collect();
+                results.push((path.to_string(), embedding));
+            }
+        }
+        
+        Ok(results)
+    } else {
+        Ok(Vec::new())
+    }
+}
+
 fn cosine_sim(a: Embedding, b: Embedding) -> f32 {
     assert_eq!(a.len(), b.len(), "Vectors must be of equal length");
     
@@ -164,13 +179,4 @@ fn cosine_sim(a: Embedding, b: Embedding) -> f32 {
     let magnitude_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
 
     dot_product / (magnitude_a * magnitude_b)
-}
-
-pub fn update_path(old_path: &str, new_path: &str) -> Result<(), rusqlite::Error> {
-    let conn = get_connection();
-    conn.execute(
-        "UPDATE FILES SET path = ?1 WHERE path = ?2",
-        (&new_path, &old_path)
-    )?;
-    Ok(())
 }
