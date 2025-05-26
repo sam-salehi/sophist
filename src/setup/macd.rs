@@ -3,10 +3,8 @@ use std::fs;
 use std::io::Write;
 
 pub(crate) fn setup(daemon_path: &std::path::Path) {
-    println!("Setting up daemon for macOS...");
-    
+
     let home_dir = std::env::var("HOME").expect("Could not find home directory");
-    println!("Home_dir: {}", home_dir); //  !
     let launch_agents_dir = format!("{}/Library/LaunchAgents", home_dir);
     let plist_path: String = format!("{}/com.sophist.filewatcher.plist", launch_agents_dir);
     
@@ -14,7 +12,6 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     let abs_daemon_path = daemon_path.canonicalize()
         .expect("Could not get absolute path to daemon.py");
     assert!(abs_daemon_path.exists(), "daemon.py not found at: {}", abs_daemon_path.display());
-    println!("Using daemon at: {}", abs_daemon_path.display());
 
     // Create directory with standard permissions if it doesn't exist
     fs::create_dir_all(&launch_agents_dir)
@@ -58,17 +55,15 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     );
 
     let mut file = fs::File::create(&plist_path)
-        .expect("Failed to create plist file");
+        .expect("Failed to create plist file.");
     file.write_all(plist_content.as_bytes())
-        .expect("Failed to write plist content");
+        .expect("Failed to write plist content.");
 
-    println!("File and content created");
     // Unload if exists to be loaded again
     Command::new("launchctl")
         .args(["unload", &plist_path])
         .status()
         .ok();
-    println!("unload command executed");
 
     // Load the daemon
     let output = Command::new("launchctl")
@@ -82,8 +77,6 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
         eprintln!("Load error: {}", String::from_utf8_lossy(&output.stderr));
         panic!("Failed to load daemon");
     }
-
-    println!("Daemon setup complete. Check logs at ~/Library/Logs/sophist.log");
 }
 
 
@@ -110,7 +103,7 @@ pub(crate) fn shutdown() {
         panic!("Failed to shutdown daemon");
     }
 
-    println!("Daemon successfully shutdown");
+    println!("Daemon shutdown.");
 }
 
 

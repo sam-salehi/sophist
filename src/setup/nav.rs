@@ -79,10 +79,29 @@ fn is_daemon_alive() -> bool {
 }
 
 
+fn api_keys_are_setup() -> bool {
+    let env_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
+    if !env_path.exists() {return false;}
+        
+    let env_content = fs::read_to_string(&env_path)
+        .expect("Failed to read .env file");
+    return env_content.contains("GEMINI_API_KEY=") &&  env_content.contains("JINA_API_KEY=");
+}
+
 fn setup_api_keys() {
     let mut gemini_key = String::new();
     let mut jina_key = String::new();
-    
+
+    if api_keys_are_setup() {
+        let mut status = String::new();
+        while status.trim() != "y" {
+            println!("API keys are already setup. Would you like to replace them(y/n) :");
+            io::stdout().flush().unwrap();
+            io::stdin().read_line(&mut status).unwrap();
+            if status.trim() == "n" {return;}
+        }
+
+    } 
     println!("Please enter your API keys:");
     print!("GEMINI_API_KEY=");
     io::stdout().flush().unwrap();  // Flush to show prompt before read
@@ -100,4 +119,20 @@ fn setup_api_keys() {
 
     fs::write(".env", env_content)
         .expect("Failed to write API keys to .env file");
+}
+
+
+
+pub(crate) fn setup(daemon_path: &std::path::Path) {
+    // Check .env file exists and contains required keys
+    let env_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
+    assert!(env_path.exists(), ".env file not found at project root");
+    
+    let env_content = fs::read_to_string(&env_path)
+        .expect("Failed to read .env file");
+    
+    assert!(env_content.contains("GEMINI_API_KEY="), "GEMINI_API_KEY not found in .env");
+    assert!(env_content.contains("JINA_API_KEY="), "JINA_API_KEY not found in .env");
+
+    // ... rest of setup code ...
 }

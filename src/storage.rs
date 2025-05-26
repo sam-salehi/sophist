@@ -10,7 +10,6 @@ struct Entry  {
     vec: Embedding
 }
 
-// ! needs refactoring inits
 
 
 fn get_data_path() -> String {
@@ -20,6 +19,12 @@ fn get_data_path() -> String {
         .join("tracked_files.json")
         .to_string_lossy()
         .to_string()
+}
+
+fn get_data() -> std::io::Result<serde_json::Value> {
+    let file = File::open(get_data_path())?;
+    let data: serde_json::Value = serde_json::from_reader(file)?;
+    return Ok(data);
 }
 
 pub fn make_table() -> std::io::Result<()> { 
@@ -35,8 +40,8 @@ pub fn make_table() -> std::io::Result<()> {
 }
 
 pub fn insert_embedding(address: &str, embedding: Embedding) -> std::io::Result<()> {
-    let file = File::open(get_data_path())?;
-    let mut data: serde_json::Value = serde_json::from_reader(file)?;
+
+    let mut data = get_data()?;
     
     let entry = Entry {
         name: address.split('/').last().unwrap_or(address).to_string(),
@@ -69,8 +74,7 @@ pub fn insert_embedding(address: &str, embedding: Embedding) -> std::io::Result<
 pub fn get_embedding(address: &str) -> Result<Embedding, std::io::Error> {
     assert!(path_exists(address),"Path passed to get_embedding must exist in {}.",get_data_path());
     
-    let file = File::open(get_data_path())?;
-    let data: serde_json::Value = serde_json::from_reader(file)?;
+    let data = get_data()?;
     
     if let Some(entries) = data["data"].as_array() {
         if let Some(entry) = entries.iter().find(|x| x["path"] == address) {
@@ -89,23 +93,15 @@ pub fn get_embedding(address: &str) -> Result<Embedding, std::io::Error> {
 }
 
 pub fn path_exists(address: &str) -> bool {
-    println!("Given adress: {}", address);
-    let mut status: bool = false;
-    if let Ok(file) = File::open(get_data_path()) {
-        if let Ok(data) = serde_json::from_reader(file) {
-            let data: serde_json::Value = data;
-            if let Some(entries) = data["data"].as_array() {
-                println!("Printing entries: ");
-                for entry in entries.iter() {
-                    println!("{}",entry["path"]);
-                }
+
+
+    let status: bool;
+    let data = get_data().unwrap();
+
+    if let Some(entries) = data["data"].as_array() {
                 status = entries.iter().any(|x| x["path"] == address);
-            }
-        } else {
-            println!("Given invalid json at {}",get_data_path());
-        }
-    } else {
-        println!("Could not open file at {}",get_data_path());
+            } else {
+        panic!("Invalid json file format");
     }
     status
 }
@@ -113,8 +109,7 @@ pub fn path_exists(address: &str) -> bool {
 pub fn remove_row(address: &str) -> std::io::Result<()> {
     assert!(path_exists(address), "Path to remove must exist in {}", get_data_path());
     
-    let file = File::open(get_data_path())?;
-    let mut data: serde_json::Value = serde_json::from_reader(file)?;
+    let mut data = get_data()?;
     
     if let Some(entries) = data["data"].as_array_mut() {
         if let Some(pos) = entries.iter().position(|x| x["path"] == address) {
@@ -163,8 +158,8 @@ pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<Strin
 }
 
 pub fn get_all_rows() -> std::io::Result<Vec<(String, Embedding)>> {
-    let file = File::open(get_data_path())?;
-    let data: serde_json::Value = serde_json::from_reader(file)?;
+
+    let data = get_data()?;
     
     if let Some(entries) = data["data"].as_array() {
         let mut results = Vec::new();
