@@ -6,6 +6,7 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     println!("Setting up daemon for macOS...");
     
     let home_dir = std::env::var("HOME").expect("Could not find home directory");
+    println!("Home_dir: {}", home_dir); //  !
     let launch_agents_dir = format!("{}/Library/LaunchAgents", home_dir);
     let plist_path: String = format!("{}/com.sophist.filewatcher.plist", launch_agents_dir);
     
@@ -43,14 +44,10 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     <true/>
     <key>KeepAlive</key> 
     <true/>
-    <key>com.apple.security.files.all</key>
-    <true/>
-    <key>com.apple.security.files.user-selected.read-write</key>
-    <true/>
     <key>StandardOutPath</key>
-    <string>{}/library/logs/sophist.log</string>
+    <string>{}/Library/Logs/sophist.log</string>
     <key>StandardErrorPath</key>
-    <string>{}/library/logs/sophist.error.log</string>
+    <string>{}/Library/Logs/sophist.error.log</string>
 </dict>
 </plist>"#, 
         abs_daemon_path.display(),
@@ -66,12 +63,12 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
         .expect("Failed to write plist content");
 
     println!("File and content created");
-    // // Unload if exists to be loaded again
-    // Command::new("launchctl")
-    //     .args(["unload", &plist_path])
-    //     .status()
-    //     .ok();
-    // println!("unload command executed");
+    // Unload if exists to be loaded again
+    Command::new("launchctl")
+        .args(["unload", &plist_path])
+        .status()
+        .ok();
+    println!("unload command executed");
 
     // Load the daemon
     let output = Command::new("launchctl")

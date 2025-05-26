@@ -8,9 +8,8 @@ import sys
 home_dir = os.path.expanduser("~")
 log_path = os.path.join(home_dir, "Library", "Logs", "sophist.log")
 error_log_path = os.path.join(home_dir, "Library", "Logs", "sophist.error.log")
-
-# sys.stdout = open(log_path, "a")
-# sys.stderr = open(error_log_path, "a")
+sys.stdout = open(log_path, "a")
+sys.stderr = open(error_log_path, "a")
 
 CONFIG_FILE = os.path.join(os.path.dirname(__file__), "tracked_files.json")
 

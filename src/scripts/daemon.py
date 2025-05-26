@@ -14,8 +14,8 @@ home_dir = os.path.expanduser("~")
 log_path = os.path.join(home_dir, "Library", "Logs", "sophist.log")
 error_log_path = os.path.join(home_dir, "Library", "Logs", "sophist.error.log")
 # Redirect stdout and stderr to log files
-# sys.stdout = open(log_path, "a")
-# sys.stderr = open(error_log_path, "a")
+sys.stdout = open(log_path, "a")
+sys.stderr = open(error_log_path, "a")
 
 
 def run_watcher():
