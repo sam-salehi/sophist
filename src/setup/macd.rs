@@ -49,7 +49,7 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     <true/>
     <key>StandardOutPath</key>
     <string>{}/library/logs/sophist.log</string>
-    <key>StandardErrorPath</key>s
+    <key>StandardErrorPath</key>
     <string>{}/library/logs/sophist.error.log</string>
 </dict>
 </plist>"#, 
@@ -65,17 +65,21 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
     file.write_all(plist_content.as_bytes())
         .expect("Failed to write plist content");
 
-    // Unload if exists
-    Command::new("launchctl")
-        .args(["unload", &plist_path])
-        .status()
-        .ok();
+    println!("File and content created");
+    // // Unload if exists to be loaded again
+    // Command::new("launchctl")
+    //     .args(["unload", &plist_path])
+    //     .status()
+    //     .ok();
+    // println!("unload command executed");
 
     // Load the daemon
     let output = Command::new("launchctl")
         .args(["load", "-w", &plist_path])
         .output()
         .expect("Failed to execute launchctl");
+
+
 
     if !output.status.success() {
         eprintln!("Load error: {}", String::from_utf8_lossy(&output.stderr));
@@ -86,7 +90,7 @@ pub(crate) fn setup(daemon_path: &std::path::Path) {
 }
 
 
-pub(crate) fn shutdown() { // TODO make this mac specific.
+pub(crate) fn shutdown() {
     let home_dir = std::env::var("HOME").expect("Could not find home directory"); 
     let plist_path = format!("{}/Library/LaunchAgents/com.sophist.filewatcher.plist", home_dir);
 

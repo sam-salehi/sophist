@@ -2,6 +2,7 @@ use serde_json::json;
 use crate::types::Embedding;
 use std::io::Write;
 use std::fs::File;
+use std::path::Path;
 
 struct Entry  {
     name: String,
@@ -12,20 +13,29 @@ struct Entry  {
 // ! needs refactoring inits
 
 
-const DATA_PATH: &str = "scripts/tracked_files.json";
+fn get_data_path() -> String {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("scripts")
+        .join("tracked_files.json")
+        .to_string_lossy()
+        .to_string()
+}
 
 pub fn make_table() -> std::io::Result<()> { 
     let data = json!({
         "data": []
     });
     let json_string = serde_json::to_string_pretty(&data).unwrap();
-    let mut file = File::create(DATA_PATH)?;
+    println!("Creating file");
+    let mut file = File::create(get_data_path())?;
+    println!("Writing to file");
     file.write_all(json_string.as_bytes())?;
     Ok(())
 }
 
 pub fn insert_embedding(address: &str, embedding: Embedding) -> std::io::Result<()> {
-    let file = File::open(DATA_PATH)?;
+    let file = File::open(get_data_path())?;
     let mut data: serde_json::Value = serde_json::from_reader(file)?;
     
     let entry = Entry {
@@ -50,16 +60,16 @@ pub fn insert_embedding(address: &str, embedding: Embedding) -> std::io::Result<
         }));
     }
 
-    let mut file = File::create(DATA_PATH)?;
+    let mut file = File::create(get_data_path())?;
     file.write_all(serde_json::to_string_pretty(&data)?.as_bytes())?;
     Ok(())
 }
 
 
 pub fn get_embedding(address: &str) -> Result<Embedding, std::io::Error> {
-    assert!(path_exists(address),"Path passed to get_embedding must exist in {}.",DATA_PATH);
+    assert!(path_exists(address),"Path passed to get_embedding must exist in {}.",get_data_path());
     
-    let file = File::open(DATA_PATH)?;
+    let file = File::open(get_data_path())?;
     let data: serde_json::Value = serde_json::from_reader(file)?;
     
     if let Some(entries) = data["data"].as_array() {
@@ -79,27 +89,37 @@ pub fn get_embedding(address: &str) -> Result<Embedding, std::io::Error> {
 }
 
 pub fn path_exists(address: &str) -> bool {
-    if let Ok(file) = File::open(DATA_PATH) {
+    println!("Given adress: {}", address);
+    let mut status: bool = false;
+    if let Ok(file) = File::open(get_data_path()) {
         if let Ok(data) = serde_json::from_reader(file) {
             let data: serde_json::Value = data;
             if let Some(entries) = data["data"].as_array() {
-                return entries.iter().any(|x| x["path"] == address);
+                println!("Printing entries: ");
+                for entry in entries.iter() {
+                    println!("{}",entry["path"]);
+                }
+                status = entries.iter().any(|x| x["path"] == address);
             }
+        } else {
+            println!("Given invalid json at {}",get_data_path());
         }
+    } else {
+        println!("Could not open file at {}",get_data_path());
     }
-    false
+    status
 }
 
 pub fn remove_row(address: &str) -> std::io::Result<()> {
-    assert!(path_exists(address), "Path to remove must exist in {}", DATA_PATH);
+    assert!(path_exists(address), "Path to remove must exist in {}", get_data_path());
     
-    let file = File::open(DATA_PATH)?;
+    let file = File::open(get_data_path())?;
     let mut data: serde_json::Value = serde_json::from_reader(file)?;
     
     if let Some(entries) = data["data"].as_array_mut() {
         if let Some(pos) = entries.iter().position(|x| x["path"] == address) {
             entries.remove(pos);
-            let mut file = File::create(DATA_PATH)?;
+            let mut file = File::create(get_data_path())?;
             file.write_all(serde_json::to_string_pretty(&data)?.as_bytes())?;
             return Ok(());
         }
@@ -143,7 +163,7 @@ pub fn get_closest_paths(query_embedding: Embedding, k: u32) -> Result<Vec<Strin
 }
 
 pub fn get_all_rows() -> std::io::Result<Vec<(String, Embedding)>> {
-    let file = File::open(DATA_PATH)?;
+    let file = File::open(get_data_path())?;
     let data: serde_json::Value = serde_json::from_reader(file)?;
     
     if let Some(entries) = data["data"].as_array() {

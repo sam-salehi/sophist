@@ -57,7 +57,6 @@ async fn get_general_text_embedding(abs_path: &str) ->  Option<Embedding> {
 
 async fn get_general_image_embedding(abs_path: &str) -> Option<Embedding> {
     // handle errors here. Return Option
-    // TODO test image software with image embeddings.
     match generate_jina_image_embedding(abs_path).await {
         Ok(emb) => Some(emb),
         Err(e) => {

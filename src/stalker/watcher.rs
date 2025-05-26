@@ -40,7 +40,7 @@ pub fn abandon_watch() {
     let abs_path = abs_path_buf.to_string_lossy().to_string();
 
     if !storage::path_exists(&abs_path) {
-        println!("Given path was not found in database: {}",abs_path);
+        println!("Given path was not found in database on abandon: {}",abs_path);
         return;
     }
     storage::remove_row(&abs_path).unwrap();        

@@ -5,6 +5,9 @@ use super::linuxd;
 use std::fs;
 use std::io::{self, Write};
 use std::process::Command;
+use std::path::Path;
+
+const DAEMON_PATH: &str = "src/scripts/daemon.py";
 
 pub fn init() {
     // creates a simple SQL database with two columns vector and pathd
@@ -38,12 +41,12 @@ pub fn shutdown() {
 
 
 fn setup_daemon() {
-    let daemon_path = std::path::Path::new("src/scripts/daemon.py");
-    assert!(daemon_path.exists(), "daemon.py not found");
+    let script_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(DAEMON_PATH);
+    assert!(script_path.exists(), "daemon.py not found");
 
     match OS {
-        "macos" => macd::setup(daemon_path),
-        "linux" => linuxd::setup(daemon_path),
+        "macos" => macd::setup(&script_path),
+        "linux" => linuxd::setup(&script_path),
         os => println!("Unsupported operating system: {}", os)
     }
 }
