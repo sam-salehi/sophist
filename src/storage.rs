@@ -32,9 +32,7 @@ pub fn make_table() -> std::io::Result<()> {
         "data": []
     });
     let json_string = serde_json::to_string_pretty(&data).unwrap();
-    println!("Creating file");
     let mut file = File::create(get_data_path())?;
-    println!("Writing to file");
     file.write_all(json_string.as_bytes())?;
     Ok(())
 }

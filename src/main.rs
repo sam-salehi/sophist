@@ -1,4 +1,4 @@
-use std::{env,process};
+use std::env;
 use sophist::{debugger, setup, stalker::{begin_watch,abandon_watch,semantic_search}};
 use dotenv::dotenv;
 
@@ -17,24 +17,26 @@ async fn main() {
         "search" => semantic_search().await, 
         "debug" => debugger::find_embedding(second_arg.unwrap()).await,
         "shutdown" => setup::shutdown(),
-        "help" => panic!("Help command not yet setup"),
-        _ => handle_invalid_command(command),
+        "help" => help(),
+        _ => println!("Invalid command.Run sophist help for gudiance"),
     }
 }
 
 
 const COMMANDS : [&str;5] = [
-    "init: Get started with a SQL database. Pass Gemini Key. Install dependencies.",
-    "watch: Begin stalking a file.",
-    "debug: for debugging purposes.",
+    "init: Setup storage. Bootup daemon. Pass API keys. Install dependencies.",
+    "shutdown: Kill daemon.",
+    "watch <relative_path>: Begin stalking a file. Add embedding to storage.",
     "abandon: Stop stalking file for movement. Remove its embedding from database.",
-    "search: Semantic search for file to get location."
+    "search: Begin generating search query.",
 ];
 
-fn handle_invalid_command(command: String) {
-    println!("Recieved invalid command {command}");
-    println!("Below are plausible commands {}", COMMANDS.join("\n"));
-    process::exit(0);
+
+fn help() {
+    println!("run 'sophist <command>' for any of the commands below");
+    for command in COMMANDS.iter() {
+        println!("{command}");
+    }
 }
 
 

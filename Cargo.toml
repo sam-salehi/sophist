@@ -1,8 +1,12 @@
 [package]
 name = "sophist"
 version = "0.1.0"
-edition = "2024"
-default-run = "sophist"
+edition = "2021"
+authors = ["Sam Salehi"]
+description = "Semantic CLI stalker"
+license = "MIT"
+repository = "https://github.com/sam-salehi/sophist"
+
 
 [dependencies]
 uuid = {version = "1", features = ["v4"]}
@@ -16,4 +20,5 @@ dotenv = "0.15"
 serde = { version = "1.0", features = ["derive"] }
 pulldown-cmark = "0.9"
 base64 = "0.21"
+
 
