@@ -27,6 +27,7 @@ Sophist uses the gemini flash model for generating summary of long documents and
 To setup on a macOS device run the following:
 ```
 git clone https://github.com/sam-salehi/sophist.git
+cargo build
 cargo install --path .
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
