@@ -32,10 +32,3 @@ cargo install --path .
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-## Linux setup
-For a linux device run:
-```
-```
-
-## In action
-
